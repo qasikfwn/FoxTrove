@@ -5,6 +5,7 @@
   <%= f.input :similarity_cutoff, value: Config.similarity_cutoff %>
   <%= f.input :log_scraper_requests, as: :select, selected: Config.log_scraper_requests? %>
   <%= f.input :scraper_request_rate_limit, value: Config.scraper_request_rate_limit %>
+  <%= f.input :selenium_proxy, value: Config.selenium_proxy %>
   <%= f.input :time_zone, collection: ActiveSupport::TimeZone.all.map { |tz| [tz.to_s, tz.name] }, selected: Config.time_zone %>
   <%= f.submit %>
 <% end %>

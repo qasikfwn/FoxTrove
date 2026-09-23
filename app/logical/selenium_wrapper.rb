@@ -4,6 +4,12 @@ class SeleniumWrapper
   def self.driver(with_performance: false)
     options = Selenium::WebDriver::Chrome::Options.new(exclude_switches: ["enable-automation"])
     options.add_argument("--disable-blink-features=AutomationControlled")
+    if Config.selenium_proxy.present?
+      options.proxy = Selenium::WebDriver::Proxy.new(
+        http: Config.selenium_proxy,
+        ssl: Config.selenium_proxy,
+      )
+    end
 
     prefs = {}
     prefs[:performance] = "ALL" if with_performance

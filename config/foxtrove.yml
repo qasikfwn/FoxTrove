@@ -11,6 +11,10 @@ files_per_page: 25
 
 similarity_cutoff: 70
 
+# HTTP proxy string to be used by Selenium. Eg `10.0.0.1:8080`.
+# For no proxy, leave unset or as an empty string.
+selenium_proxy:
+
 inkbunny_user:
 inkbunny_pass:
 deviantart_client_id:
