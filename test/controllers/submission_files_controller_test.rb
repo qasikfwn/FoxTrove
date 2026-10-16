@@ -32,7 +32,7 @@ class SubmissionFilesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  test "modify backlock add" do
+  test "modify backlog add" do
     sm = create(:submission_file)
     put modify_backlog_submission_file_path(sm, type: "add")
 
@@ -40,7 +40,7 @@ class SubmissionFilesControllerTest < ActionDispatch::IntegrationTest
     assert sm.reload.added_to_backlog_at
   end
 
-  test "modify backlock remove" do
+  test "modify backlog remove" do
     sm = create(:submission_file, added_to_backlog_at: Time.current)
     put modify_backlog_submission_file_path(sm, type: "remove")
 
@@ -84,6 +84,21 @@ class SubmissionFilesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_enqueued_jobs 2, only: E6IqdbQueryJob
+  end
+
+  test "update e6 posts clears existing iqdb data immediately" do
+    sm = create(:submission_file_with_original, file_name: "1.jpg", with_sample: true, last_iqdb_checked_at: Time.current)
+    create(:e6_post, submission_file: sm)
+
+    assert_not_nil(sm.last_iqdb_checked_at)
+    assert_not_empty(sm.e6_posts)
+
+    stub_iqdb({}) do
+      post update_e6_posts_submission_file_path(sm)
+    end
+
+    assert_nil(sm.reload.last_iqdb_checked_at)
+    assert_empty(sm.e6_posts)
   end
 
   test "update matching e6 posts" do

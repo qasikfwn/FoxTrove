@@ -44,6 +44,18 @@ class SubmissionFileTest < ActiveSupport::TestCase
       assert_no_enqueued_jobs { sm.save }
     end
 
+    test "handles videos" do
+      sm = create(:submission_file_with_original, file_name: "1.webm", with_sample: true)
+      assert_equal(720, sm.width)
+      assert_equal(480, sm.height)
+
+      sm.sample.open do |file|
+        sample = Vips::Image.new_from_file(file.path)
+        assert_equal(300, sample.width)
+        assert_equal(200, sample.height)
+      end
+    end
+
     test "handles corrupt files" do
       sm = create(:submission_file_with_original, file_name: "corrupt.jpg")
       assert_predicate sm, :corrupt?
@@ -143,7 +155,8 @@ class SubmissionFileTest < ActiveSupport::TestCase
     end
 
     test "results for not uploaded" do
-      sm1, sm2, sm3 = create_list(:submission_file, 3)
+      sm1, sm2, sm3, _sm4 = create_list(:submission_file, 4)
+      sm3.update!(last_iqdb_checked_at: Time.current)
       create_list(:e6_post, 2, submission_file: sm1)
       create(:e6_post, submission_file: sm2)
 

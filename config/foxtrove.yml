@@ -17,14 +17,14 @@ selenium_proxy:
 
 inkbunny_user:
 inkbunny_pass:
-deviantart_client_id:
-deviantart_client_secret:
+deviantart_client_id_v2:
+deviantart_client_secret_v2:
 deviantart_user:
 deviantart_pass:
 e6_user:
 e6_apikey:
-furaffinity_user:
-furaffinity_pass:
+furaffinity_cookie_a:
+furaffinity_cookie_b:
 weasyl_apikey:
 sofurry_user:
 sofurry_pass:

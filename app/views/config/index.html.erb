@@ -1,6 +1,8 @@
 <h1>General Settings</h1>
 
 <%= form_with(scope: :config, url: modify_config_index_path, method: :put) do |f| %>
+  <%= f.input :e6_user, value: Config.e6_user %>
+  <%= f.input :e6_apikey, value: Config.e6_apikey %>
   <%= f.input :files_per_page, value: Config.files_per_page %>
   <%= f.input :similarity_cutoff, value: Config.similarity_cutoff %>
   <%= f.input :log_scraper_requests, as: :select, selected: Config.log_scraper_requests? %>
@@ -10,8 +12,23 @@
   <%= f.submit %>
 <% end %>
 
-<% Sites.scraper_definitions.each do |definition| %>
-  <div><%= link_to "#{definition.display_name} settings", config_path(definition.site_type) %></div>
-<% end %>
+<table class="table">
+  <thead>
+    <tr>
+      <th>Site</th>
+      <th></th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% Sites.scraper_definitions.each do |definition| %>
+      <tr>
+        <td><%= icon_url(definition.site_type) %> <%= definition.display_name %></td>
+        <td><%= link_to "Edit", config_path(definition.site_type) %></td>
+        <td><%= definition_status(definition) %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
 
 <% page_title "Settings" %>

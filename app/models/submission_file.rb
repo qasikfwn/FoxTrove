@@ -47,7 +47,7 @@ class SubmissionFile < ApplicationRecord
   end
 
   def self.select_from_e6_posts_where_not_exists(condition = nil, *condition_args)
-    where("not exists (#{select_from_e6_posts(condition)})", *condition_args)
+    where.not(last_iqdb_checked_at: nil).where("not exists (#{select_from_e6_posts(condition)})", *condition_args)
   end
 
   def self.select_from_e6_posts(condition)
@@ -93,10 +93,10 @@ class SubmissionFile < ApplicationRecord
   end
 
   def attach_original_from_blob!(blob)
-    metadata = ActiveStorage::Analyzer::ImageAnalyzer::Vips.new(blob).metadata
     raise StandardError, "Failed to analyze" if blob.content_type == "application/octet-stream"
     raise StandardError, "'#{blob.content_type}' is not allowed" if blob.content_type.in? Scraper::Submission::MIME_IGNORE
 
+    metadata = metadata_from_blob(blob)
     self.width = metadata[:width]
     self.height = metadata[:height]
     self.content_type = blob.content_type
@@ -112,6 +112,15 @@ class SubmissionFile < ApplicationRecord
 
     original.attach(blob)
     save!
+  end
+
+  def metadata_from_blob(blob)
+    analyzer = if blob.image?
+      ActiveStorage::Analyzer::ImageAnalyzer::Vips
+    else
+      ActiveStorage::Analyzer::VideoAnalyzer
+    end
+    analyzer.new(blob).metadata
   end
 
   def corrupt?
@@ -149,9 +158,9 @@ class SubmissionFile < ApplicationRecord
   end
 
   def update_e6_posts(priority: E6IqdbQueryJob::PRIORITIES[:manual_action])
-    e6_posts.destroy_all
+    destroy_e6_posts
     similar = IqdbProxy.query_submission_file(self).pluck(:submission_file)
-    similar.each { |s| s.e6_posts.destroy_all }
+    similar.each(&:destroy_e6_posts)
 
     E6IqdbQueryJob.set(priority: priority).perform_later(self)
     similar.each do |s|
@@ -163,7 +172,7 @@ class SubmissionFile < ApplicationRecord
   end
 
   def update_e6_posts!
-    e6_posts.destroy_all
+    destroy_e6_posts
 
     sample.open do |file|
       # FIXME: Error handling
@@ -171,28 +180,37 @@ class SubmissionFile < ApplicationRecord
       break unless json.is_a? Array
 
       json.each do |entry|
-        post_id = entry["post"]["posts"]["id"]
-        post_json = E6ApiClient.get_post(post_id)
+        post = entry["post"]
+        post_id = post["id"]
         post_entry = e6_posts.create(
-          post_id: post_json["id"],
-          post_width: post_json["file"]["width"],
-          post_height: post_json["file"]["height"],
-          post_size: post_json["file"]["size"],
-          post_is_deleted: post_json["flags"]["deleted"],
-          post_json: post_json,
+          post_id: post_id,
+          post_width: post.dig("files", "original", "width"),
+          post_height: post.dig("files", "original", "height"),
+          post_size: post.dig("files", "meta", "size"),
+          post_is_deleted: post.dig("flags", "deleted"),
+          post_score: post.dig("stats", "score", "total"),
+          post_direct_url: post.dig("files", "original", "url"),
+          post_json: entry["post"],
           similarity_score: entry["score"],
-          is_exact_match: md5 == post_json["file"]["md5"] || existing_matches(post_json["id"], is_exact_match: true).any?,
+          is_exact_match: md5 == post.dig("files", "meta", "md5") || existing_matches(post_id, is_exact_match: true).any?,
         )
 
         # Check if there are entries which were previously added
         # that are an exact visual match to this newly added exact match
         if post_entry.is_exact_match
-          existing_matches(post_json["id"], is_exact_match: false).find_each do |existing_match|
+          existing_matches(post_id, is_exact_match: false).find_each do |existing_match|
             existing_match.update(is_exact_match: true)
           end
         end
       end
     end
+
+    update(last_iqdb_checked_at: Time.current)
+  end
+
+  def destroy_e6_posts
+    e6_posts.destroy_all
+    update(last_iqdb_checked_at: nil)
   end
 
   def existing_matches(post_id, is_exact_match:)

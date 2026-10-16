@@ -20,7 +20,7 @@ module Scraper
           {
             id: single_submission_id,
             title: html.css(".submission-title").first.content.strip,
-            description: html.css(".submission-description").first.content.strip,
+            description: html.css(".submission-description-text").first.content.strip,
             created_at: submission_timestamp(html),
             url: "https:#{html.at_css('#submission-options a[href^="//d.furaffinity.net/"]')['href']}",
           },
@@ -64,7 +64,7 @@ module Scraper
         headers: headers,
         form: {
           "page": page,
-          # Searches can't start with a dash, and can' contain ~
+          # Searches can't start with a dash, and can't contain ~
           # ~ can be substituted with - when searching
           "q": "@lower #{url_identifier.tr('~', '-').delete_prefix('-')}",
           "order-by": "date",
@@ -103,23 +103,7 @@ module Scraper
     end
 
     def headers
-      cookie_a, cookie_b = fetch_cookies
-      { Cookie: "a=#{cookie_a}; b=#{cookie_b}" }
+      { Cookie: "a=#{Config.furaffinity_cookie_a}; b=#{Config.furaffinity_cookie_b}" }
     end
-
-    def fetch_cookies
-      SeleniumWrapper.driver do |driver|
-        driver.navigate.to "https://www.furaffinity.net/login"
-
-        driver.wait_for_element(css: "#login-form input[name='name']").send_keys Config.furaffinity_user
-        driver.find_element(css: "#login-form input[name='pass']").send_keys Config.furaffinity_pass
-        driver.find_element(id: "login-button").click
-
-        cookie_a = driver.wait_for_cookie("a")
-        cookie_b = driver.cookie_value("b")
-        [cookie_a, cookie_b]
-      end
-    end
-    cache(:fetch_cookies, 2.weeks)
   end
 end
